@@ -7,6 +7,28 @@ description: Use this skill when the user wants to make a phone call, initiate a
 
 An intelligent AI skill that manages the complete phone call workflow: creating agents, executing calls, analyzing conversations, and providing actionable insights.
 
+## 🚀 Quick Usage
+
+**For AI Agents calling this skill:**
+
+```bash
+# Single command to make a complete phone call:
+scripts/phone_call.sh \
+  --to "+16576102352" \
+  --purpose "Make dinner reservation for 2 people tonight at 8 PM. Name: John Smith"
+```
+
+**What it does:**
+- ✅ Creates optimized AI agent
+- ✅ Makes the phone call
+- ✅ Waits for completion
+- ✅ Analyzes conversation
+- ✅ Reports success/failure with recommendations
+
+**Output:** Clear success/failure report with extracted information.
+
+---
+
 ## Core Capabilities
 
 This skill provides **complete phone call management**:
@@ -26,6 +48,30 @@ Use this skill when the user wants to:
 - Have an AI agent communicate via phone
 - Analyze call transcripts and extract insights
 - Get intelligent summaries of phone conversations
+
+## Quick Start - For AI Agents
+
+**Simple Usage:**
+```bash
+# Navigate to skill directory
+cd ~/.openclaw/workspace/skills/phone-call
+
+# Make a call (automatic agent creation)
+./scripts/phone_call.sh \
+  --to "+1234567890" \
+  --purpose "Make a dinner reservation for 2 people tonight at 8 PM"
+
+# Analyze results
+./scripts/phone_call.sh --analyze "call-id-xxx"
+```
+
+**The script handles everything:**
+1. Creates optimized agent based on purpose
+2. Makes the phone call
+3. Waits for completion
+4. Analyzes and reports results
+
+**For advanced usage, see "Complete Workflow" below.**
 
 ## Complete Workflow
 
