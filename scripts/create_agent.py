@@ -21,7 +21,7 @@ def create_agent(
     language: str = "en",
     voice_provider: str = "elevenlabs",
     voice_id: str = None,
-    initial_message: str = "Hello, how can I help you today?"
+    initial_message: str = None  # Auto-generated if not provided
 ):
     """
     Create a phone agent with specified configuration
@@ -67,6 +67,14 @@ def create_agent(
     if not voice_id:
         print("✗ No voice specified and couldn't fetch default voice", file=sys.stderr)
         sys.exit(1)
+
+    # Set default initial message for OUTBOUND calls
+    # Note: Caller should customize this based on their specific purpose
+    if not initial_message:
+        initial_message = "Hello, I'm calling regarding an important matter."
+        print(f"⚠ Using default opening: \"{initial_message}\"")
+        print(f"  TIP: Customize with --initial-message for better results")
+        print(f"  Example: \"Hello, I'm calling to make a dinner reservation.\"")
 
     # Construct the payload according to fluents.ai API spec
     # IMPORTANT: Based on successful curl tests, the format must be:
@@ -127,8 +135,8 @@ def main():
     parser.add_argument("--prompt", required=True, help="System prompt for agent behavior")
     parser.add_argument("--language", default="en", help="Language code (default: en)")
     parser.add_argument("--voice-id", help="Specific voice ID (will use default if not specified)")
-    parser.add_argument("--initial-message", default="Hello, how can I help you today?",
-                       help="Initial greeting message")
+    parser.add_argument("--initial-message",
+                       help="Initial greeting (auto-generated from prompt if not provided)")
 
     args = parser.parse_args()
 

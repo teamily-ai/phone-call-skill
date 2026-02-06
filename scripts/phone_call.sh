@@ -164,10 +164,35 @@ if [ -z "$AGENT_ID" ]; then
     echo "Purpose: $PURPOSE"
     echo ""
 
+    # Generate appropriate initial message based on purpose
+    # This tells the recipient WHO is calling and WHY
+    INITIAL_MSG=""
+    PURPOSE_LOWER=$(echo "$PURPOSE" | tr '[:upper:]' '[:lower:]')
+
+    if echo "$PURPOSE_LOWER" | grep -q "reserv\|book"; then
+        INITIAL_MSG="Hello, I'm calling to make a reservation."
+    elif echo "$PURPOSE_LOWER" | grep -q "confirm.*\(meeting\|appointment\)"; then
+        INITIAL_MSG="Hello, I'm calling to confirm an appointment."
+    elif echo "$PURPOSE_LOWER" | grep -q "follow.up\|follow-up"; then
+        INITIAL_MSG="Hello, I'm calling to follow up with you."
+    elif echo "$PURPOSE_LOWER" | grep -q "reminder"; then
+        INITIAL_MSG="Hello, I'm calling with a reminder."
+    elif echo "$PURPOSE_LOWER" | grep -q "order"; then
+        INITIAL_MSG="Hello, I'm calling about an order."
+    else
+        # Extract first few words of purpose as opening
+        FIRST_WORDS=$(echo "$PURPOSE" | cut -d'.' -f1 | head -c 80)
+        INITIAL_MSG="Hello, I'm calling regarding: $FIRST_WORDS"
+    fi
+
+    echo "Opening message: $INITIAL_MSG"
+    echo ""
+
     # Create agent and capture output
     AGENT_OUTPUT=$(python3 "$SCRIPT_DIR/create_agent.py" \
         --name "Auto-generated: $(date +%Y%m%d-%H%M%S)" \
         --prompt "$PURPOSE" \
+        --initial-message "$INITIAL_MSG" \
         --language "$LANGUAGE" 2>&1)
 
     echo "$AGENT_OUTPUT"
