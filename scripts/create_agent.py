@@ -46,26 +46,47 @@ def create_agent(
         "Content-Type": "application/json"
     }
 
+    # Get default voice if not specified
+    if not voice_id:
+        # Use a default voice - fetch the first available voice
+        try:
+            voices_response = requests.get(
+                f"{FLUENTS_API_URL}/v1/voices/list",
+                params={"page": 1, "size": 1},
+                headers={"Authorization": f"Bearer {FLUENTS_API_KEY}"},
+                timeout=10
+            )
+            if voices_response.status_code == 200:
+                voices = voices_response.json().get('items', [])
+                if voices:
+                    voice_id = voices[0]['id']
+                    print(f"Using default voice: {voices[0].get('label', 'Unknown')}")
+        except:
+            pass
+
+    if not voice_id:
+        print("✗ No voice specified and couldn't fetch default voice", file=sys.stderr)
+        sys.exit(1)
+
     # Construct the payload according to fluents.ai API spec
+    # IMPORTANT: Based on successful curl tests, the format must be:
+    # - prompt.content (not prompt.text)
+    # - voice as UUID string (not object)
     payload = {
         "name": name,
         "language": language,
         "initial_message": initial_message,
         "prompt": {
-            "text": prompt_text
+            "content": prompt_text  # ✅ FIXED: use "content" not "text"
         },
-        "actions": [],  # Empty actions array for basic agent
-        "voice": {
-            "provider": voice_provider
-        },
-        "enable_recording": True,
-        "interrupt_sensitivity": "high",
-        "endpointing_sensitivity": "auto"
+        "actions": [],
+        "voice": voice_id,  # ✅ FIXED: direct UUID string, not object
+        "interrupt_sensitivity": "low",
+        "endpointing_sensitivity": "auto",
+        "conversation_speed": 1.0,
+        "provider": "openai",
+        "llm_temperature": 0.7
     }
-
-    # Add voice_id if specified
-    if voice_id:
-        payload["voice"]["voice_id"] = voice_id
 
     try:
         response = requests.post(
@@ -92,12 +113,11 @@ def create_agent(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Create a fluents.ai phone agent")
+    parser = argparse.ArgumentParser(description="Create a fluents.ai phone agent (FIXED)")
     parser.add_argument("--name", required=True, help="Name of the agent")
     parser.add_argument("--prompt", required=True, help="System prompt for agent behavior")
     parser.add_argument("--language", default="en", help="Language code (default: en)")
-    parser.add_argument("--voice-provider", default="elevenlabs", help="Voice provider (default: elevenlabs)")
-    parser.add_argument("--voice-id", help="Specific voice ID to use")
+    parser.add_argument("--voice-id", help="Specific voice ID (will use default if not specified)")
     parser.add_argument("--initial-message", default="Hello, how can I help you today?",
                        help="Initial greeting message")
 
@@ -107,13 +127,18 @@ def main():
         name=args.name,
         prompt_text=args.prompt,
         language=args.language,
-        voice_provider=args.voice_provider,
         voice_id=args.voice_id,
         initial_message=args.initial_message
     )
 
     # Output agent_id for use in subsequent scripts
-    print(f"\nAgent ID: {result.get('id')}")
+    print(f"\n✅ Agent created successfully!")
+    print(f"Agent ID: {result.get('id')}")
+    print(f"\nYou can now make calls with:")
+    print(f"  python3 scripts/make_call_simple.py \\")
+    print(f"    --agent-id \"{result.get('id')}\" \\")
+    print(f"    --to-number \"+1234567890\" \\")
+    print(f"    --from-number \"+15103982646\"")
 
 
 if __name__ == "__main__":
