@@ -82,16 +82,16 @@ def create_agent(
         "actions": [],
         "voice": voice_id,  # ✅ FIXED: direct UUID string, not object
 
-        # ⚡ OPTIMIZED FOR SPEED (solving "AI speaks slowly" issue)
-        "conversation_speed": 1.2,  # 20% faster speech (was 1.0)
-        "idle_time_seconds": 5,     # Wait only 5 seconds (default 15 is too long!)
-        "endpointing_sensitivity": "sensitive",  # Quick pause detection (was "auto")
-        "initial_message_delay": 800,  # 0.8s delay before speaking
+        # ⚡ OPTIMIZED FOR QUICK RESPONSE (not speech speed!)
+        "conversation_speed": 1.0,  # Normal speech speed (don't make it faster)
+        "idle_time_seconds": 4,     # Quick response - only wait 4 seconds!
+        "endpointing_sensitivity": "sensitive",  # Detect pauses quickly
+        "initial_message_delay": 1000,  # 1s delay before speaking (natural)
 
         # Other settings
         "interrupt_sensitivity": "high",  # Allow natural interruptions
         "provider": "openai",
-        "llm_temperature": 0.6,  # Slightly lower for faster, consistent responses
+        "llm_temperature": 0.6,  # Consistent responses
         "noise_suppression": True,  # Better audio quality
         "ask_if_human_present_on_idle": False,  # Don't waste time asking
         "call_duration_sec": 300  # 5 min max
