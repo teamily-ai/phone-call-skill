@@ -1,15 +1,24 @@
 # Phone Call Skill
 
-🤖 An AI skill for Claude Code that enables automated phone calling through the fluents.ai platform.
+🤖 An intelligent AI skill for Claude Code that manages the complete phone call lifecycle through the fluents.ai platform.
 
 ## Features
 
-- 🎯 Automatic intent recognition for phone call requests
-- 📞 Integration with fluents.ai for AI-powered phone agents
-- 🗣️ Multi-language support (English, Chinese, and more)
+### Core Capabilities
+- 🎯 **Automatic intent recognition** - Understands when users want to make calls
+- 🤖 **Smart agent creation** - Creates purpose-optimized AI phone agents
+- 📞 **Call execution & monitoring** - Initiates and tracks phone calls
+- 🔍 **Intelligent conversation analysis** - Analyzes transcripts and extracts insights
+- 📊 **Actionable reporting** - Provides clear success/failure summaries
+- 🔄 **Continuous optimization** - Learns from failures and improves performance
+
+### Advanced Features
+- 🗣️ Multi-language support (11 languages)
 - 📝 Call transcript retrieval and analysis
-- 🔍 Intelligent conversation understanding
-- 📊 Structured result reporting
+- 🎯 Task completion verification
+- 🚨 Failure pattern detection
+- 💡 Optimization recommendations
+- 📈 Success confidence scoring
 
 ## Installation
 

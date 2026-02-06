@@ -1,95 +1,192 @@
 ---
 name: phone-call
-description: Use this skill when the user wants to make a phone call, initiate automated calls, or have AI agents call someone. Works with fluents.ai platform to create phone agents, execute calls, and understand conversation results.
+description: Use this skill when the user wants to make a phone call, initiate automated calls, or have AI agents call someone. This skill handles the complete phone call lifecycle - creation, execution, analysis, and intelligent reporting. Works with fluents.ai platform.
 ---
 
 # Phone Call Skill
 
-An AI skill that enables automated phone calling functionality through the fluents.ai platform.
+An intelligent AI skill that manages the complete phone call workflow: creating agents, executing calls, analyzing conversations, and providing actionable insights.
+
+## Core Capabilities
+
+This skill provides **complete phone call management**:
+
+1. ✅ **Agent Creation** - Create purpose-specific AI phone agents
+2. ✅ **Call Execution** - Initiate and monitor phone calls
+3. ✅ **Conversation Analysis** - Analyze call transcripts and extract key information
+4. ✅ **Intelligent Reporting** - Provide clear, actionable summaries to users
+5. ✅ **Continuous Optimization** - Learn from failures and improve agent performance
 
 ## When to Use This Skill
 
 Use this skill when the user wants to:
-- Make a phone call to someone
-- Create an automated phone agent
+- Make a phone call to someone (restaurant, customer, vendor, etc.)
+- Create an automated phone agent for specific tasks
 - Conduct batch phone calls
 - Have an AI agent communicate via phone
-- Retrieve and analyze call transcripts
+- Analyze call transcripts and extract insights
+- Get intelligent summaries of phone conversations
 
-## Workflow
+## Complete Workflow
 
-### 1. Identify Phone Call Intent
+### 1. Understand User Intent & Gather Information
 
-Trigger this skill when the user expresses intentions like:
-- "Call [person/number]"
-- "Make a phone call to..."
-- "I need to contact [someone]"
-- "Call the client to confirm..."
+When the user requests a phone call, extract and confirm:
 
-### 2. Gather Required Information
+**Required Information:**
+- **Phone number**: Target contact (with country code)
+- **Call objective**: Specific goal (e.g., "book table for 2 at 8 PM", "confirm meeting")
+- **Key details**: All information needed to complete the task
+- **Language**: Language preference
+- **Urgency**: Time sensitivity
 
-Before making the call, collect:
-- **Phone number**: Target contact's phone number
-- **Call purpose**: Why this call is being made
-- **Expected content**: What to say/confirm during the call
-- **Language**: Language to use (English, Chinese, etc.)
-- **Voice style**: Optional - formal, friendly, professional, etc.
+**Example User Requests:**
+- "Call +1-657-610-2352 to book a table for 2 people tonight at 8 PM"
+- "Make a reservation at this restaurant for dinner"
+- "Call the client to confirm tomorrow's 3 PM meeting"
 
-### 3. Create Fluents.ai Phone Agent
+**What YOU Must Do:**
+- Extract ALL required information from the user
+- Ask for missing details before proceeding
+- Confirm the complete task objective
 
-Use the fluents.ai API to create a dedicated phone agent:
+### 2. Create Intelligent Phone Agent
 
-```bash
-# Call the agent creation script
-python scripts/create_agent.py \
-  --purpose "Call purpose" \
-  --language "en-US" \
-  --voice-style "professional"
+Create an agent optimized for the specific task with proper safeguards.
+
+**Agent Configuration Requirements:**
+- **Clear objective**: Explicit instructions on what to accomplish
+- **Task completion criteria**: Agent must know when the task is done
+- **Failure handling**: What to do if the task cannot be completed
+- **Timeout settings**: Appropriate idle_time and call_duration
+- **Conversation safeguards**: "DO NOT hang up until task is confirmed complete"
+
+**Key Settings:**
+```json
+{
+  "prompt": "Clear, step-by-step instructions + completion criteria",
+  "idle_time_seconds": 15,
+  "endpointing_sensitivity": "relaxed",
+  "ask_if_human_present_on_idle": true,
+  "noise_suppression": true,
+  "conversation_speed": 1.0
+}
 ```
 
-Required API endpoint (reference):
-- `POST /api/agents` - Create phone agent
-- Parameters: conversation script, voice configuration, language settings, etc.
+### 3. Execute Call & Monitor
 
-### 4. Execute Phone Call
+Initiate the call and track its progress.
 
-Use the created agent to make the actual call:
+**What YOU Must Do:**
+1. Make the call using fluents.ai API
+2. Wait for call to complete (don't interrupt mid-call)
+3. Monitor for premature disconnections
+4. Note the call duration and status
 
+**Warning Signs to Watch For:**
+- ⚠️ Call ends in < 30 seconds (likely failed)
+- ⚠️ No conversation detected
+- ⚠️ Status: `human_disconnected` too quickly
+
+### 4. Analyze Call Results
+
+**CRITICAL: You MUST analyze every call to determine success/failure.**
+
+Use the analysis script:
 ```bash
-# Call the dialing script
-python scripts/make_call.py \
-  --agent-id "agent_xxx" \
-  --phone-number "+1234567890" \
-  --callback-url "https://your-webhook.com/callback"
+python scripts/analyze_call.py --call-id "call_xxx"
 ```
 
-Required API endpoint (reference):
-- `POST /api/calls` - Initiate call
-- Parameters: agent ID, target number, callback URL, etc.
+**Required Analysis:**
 
-### 5. Understand Call Content
+1. **Task Completion Check:**
+   - ✅ Was the objective achieved? (e.g., reservation confirmed?)
+   - ❌ If not, why did it fail?
 
-After the call completes, retrieve and analyze the call records:
+2. **Conversation Quality:**
+   - Did the AI say everything it needed to say?
+   - Did the other party respond?
+   - Was information exchanged properly?
 
-```bash
-# Get call results
-python scripts/get_call_result.py \
-  --call-id "call_xxx"
+3. **Failure Pattern Detection:**
+   - Too short (< 30 seconds) = likely early hangup
+   - One-sided conversation = recognition or response issue
+   - No confirmation = incomplete task execution
+
+4. **Extract Key Information:**
+   - Confirmation numbers
+   - Alternative times/dates offered
+   - Reasons for rejection/failure
+   - Any action items
+
+### 5. Provide Intelligent Report to User
+
+**CRITICAL: Always give the user a clear, actionable summary.**
+
+**Your Report Must Include:**
+
+✅ **Success Report Format:**
+```
+✅ Task Completed Successfully!
+
+Reservation Details:
+- Restaurant: [Name]
+- Date: Tonight
+- Time: 8:00 PM
+- Party size: 2 people
+- Name: John Smith
+- Confirmation: [if provided]
+
+Call Duration: 1m 45s
 ```
 
-Required API endpoints (reference):
-- `GET /api/calls/{call_id}` - Get call details
-- `GET /api/calls/{call_id}/transcript` - Get call transcript
-- `GET /api/calls/{call_id}/analysis` - Get AI analysis results
+❌ **Failure Report Format:**
+```
+❌ Task Failed - [Reason]
 
-### 6. Report Results to User
+What Happened:
+- Call duration: 15 seconds
+- Issue: Restaurant hung up immediately
+- Transcript: [show what was said]
 
-Organize and report call results to the user:
-- Whether the call was answered
-- Call duration
-- Conversation summary
+Root Cause Analysis:
+- [Specific problem identified]
+
+Recommended Actions:
+1. [Specific next step]
+2. [Alternative approach]
+3. [When to retry]
+```
+
+📊 **Always Include:**
+- Clear success/failure indicator
+- What was accomplished (or not)
 - Key information extracted
-- Suggested follow-up actions
+- Next steps or action items
+- Whether retry is recommended
+
+### 6. Optimize & Learn
+
+**After each call, identify improvements:**
+
+**If Call Failed:**
+- Analyze WHY it failed
+- Suggest agent improvements
+- Recommend retry timing
+- Consider alternative approaches
+
+**If Call Succeeded:**
+- Note what worked well
+- Can the agent be more efficient?
+- What patterns led to success?
+
+**Common Optimizations:**
+- Adjust idle_time for better patience
+- Improve prompt clarity
+- Add noise suppression
+- Modify conversation speed
+- Change voice or tone
+- Add retry logic with delays
 
 ## Environment Setup
 
