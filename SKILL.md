@@ -1,6 +1,6 @@
 ---
 name: phone-call
-description: Use this skill when the user wants to make a phone call, initiate automated calls, or have AI agents call someone. This skill handles the complete phone call lifecycle - creation, execution, analysis, and intelligent reporting. Works with fluents.ai platform.
+description: AI phone calls made easy. One command makes the call, analyzes the conversation, and reports results with recommendations. Perfect for reservations, confirmations, customer follow-ups, and appointment reminders.
 ---
 
 # Phone Call Skill
