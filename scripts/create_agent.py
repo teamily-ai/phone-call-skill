@@ -90,6 +90,9 @@ def create_agent(
         "actions": [],
         "voice": voice_id,  # ✅ FIXED: direct UUID string, not object
 
+        # ⚡ CRITICAL FOR OUTBOUND CALLS
+        "wait_for_greeting": False,  # Agent speaks first (don't wait!)
+
         # ⚡ OPTIMIZED FOR QUICK RESPONSE (not speech speed!)
         "conversation_speed": 1.0,  # Normal speech speed (don't make it faster)
         "idle_time_seconds": 4,     # Quick response - only wait 4 seconds!
