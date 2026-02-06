@@ -80,6 +80,8 @@ def create_agent(
     # IMPORTANT: Based on successful curl tests, the format must be:
     # - prompt.content (not prompt.text)
     # - voice as UUID string (not object)
+    # - enable_dynamic_turns: true (CRITICAL for outbound!)
+    # - initial_message_delay: 0 (speak immediately!)
     payload = {
         "name": name,
         "language": language,
@@ -90,22 +92,24 @@ def create_agent(
         "actions": [],
         "voice": voice_id,  # ✅ FIXED: direct UUID string, not object
 
-        # ⚡ CRITICAL FOR OUTBOUND CALLS
+        # ⚡ CRITICAL FOR OUTBOUND CALLS - Based on working Agent 1 config
         "wait_for_greeting": False,  # Agent speaks first (don't wait!)
+        "enable_dynamic_turns": True,  # 🔥 CRITICAL: Enables proactive speaking!
+        "initial_message_delay": 0,  # 🔥 Speak IMMEDIATELY when call connects
 
-        # ⚡ OPTIMIZED FOR QUICK RESPONSE (not speech speed!)
-        "conversation_speed": 1.0,  # Normal speech speed (don't make it faster)
-        "idle_time_seconds": 4,     # Quick response - only wait 4 seconds!
-        "endpointing_sensitivity": "sensitive",  # Detect pauses quickly
-        "initial_message_delay": 1000,  # 1s delay before speaking (natural)
+        # Conversation settings - Proven working config from Agent 1
+        "endpointing_sensitivity": "auto",  # Auto detection (not too sensitive)
+        "idle_time_seconds": 7,  # Give enough time for responses
+        "conversation_speed": 1.0,  # Normal speech speed
+        "interrupt_sensitivity": "low",  # Less sensitive to interruptions
 
-        # Other settings
-        "interrupt_sensitivity": "high",  # Allow natural interruptions
+        # Quality settings
         "provider": "openai",
-        "llm_temperature": 0.6,  # Consistent responses
-        "noise_suppression": True,  # Better audio quality
-        "ask_if_human_present_on_idle": False,  # Don't waste time asking
-        "call_duration_sec": 300  # 5 min max
+        "llm_temperature": 0,  # Deterministic responses
+        "noise_suppression": False,  # Match working config
+        "ask_if_human_present_on_idle": True,  # Ask if still there
+        "call_duration_sec": 600,  # 10 minutes max
+        "max_idle_check_count": 3  # Check 3 times before giving up
     }
 
     try:
