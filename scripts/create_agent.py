@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Create a phone agent using the fluents.ai API
+Create a phone agent using the fluents.ai API with scenario-based prompts
 """
 
 import os
@@ -15,28 +15,145 @@ FLUENTS_API_KEY = os.getenv("FLUENTS_API_KEY")
 FLUENTS_API_URL = os.getenv("FLUENTS_API_URL", "https://api.fluents.ai")
 
 
+def build_scenario_prompt(
+    role: str,
+    objective: str,
+    scenario_context: str = None,
+    key_info: list = None,
+    tone: str = None,
+    additional_instructions: str = None
+) -> str:
+    """
+    Build a structured prompt based on caller-defined parameters
+
+    Args:
+        role: Who you are (e.g., "restaurant reservation assistant")
+        objective: What you need to accomplish (e.g., "confirm dinner reservation")
+        scenario_context: Optional context about the scenario (e.g., "calling existing customers")
+        key_info: List of key information to collect (e.g., ["date", "time", "number of guests"])
+        tone: Communication style (e.g., "friendly and professional")
+        additional_instructions: Any special instructions
+
+    Returns:
+        str: Complete structured prompt
+    """
+    # Build structured prompt
+    prompt_parts = [
+        f"# Role Definition",
+        f"You are a {role}.",
+        "",
+    ]
+
+    if scenario_context:
+        prompt_parts.extend([
+            f"# Scenario",
+            f"{scenario_context}",
+            "",
+        ])
+
+    prompt_parts.extend([
+        f"# Objective",
+        f"Your goal is to {objective}.",
+        "",
+    ])
+
+    if tone:
+        prompt_parts.extend([
+            f"# Communication Style",
+            f"Maintain a {tone} communication style.",
+            "",
+        ])
+
+    if key_info and len(key_info) > 0:
+        prompt_parts.extend([
+            f"# Key Information",
+            f"During the conversation, you need to collect or confirm the following information:",
+        ])
+        for info in key_info:
+            prompt_parts.append(f"- {info}")
+        prompt_parts.append("")
+
+    prompt_parts.extend([
+        f"# Conversation Guidelines",
+        f"1. Keep it concise and clear - ask only one question at a time",
+        f"2. If the customer doesn't understand, patiently repeat",
+        f"3. When confirming important information, repeat it back to ensure accuracy",
+        f"4. If unable to complete the task, politely explain why and offer alternatives",
+        f"5. Thank the customer for their time at the end of the conversation",
+    ])
+
+    if additional_instructions:
+        prompt_parts.extend([
+            "",
+            f"# Special Instructions",
+            additional_instructions
+        ])
+
+    return "\n".join(prompt_parts)
+
+
 def create_agent(
     name: str,
-    prompt_text: str,
+    prompt_text: str = None,
     language: str = "en",
     voice_provider: str = "elevenlabs",
     voice_id: str = None,
-    initial_message: str = None  # Auto-generated if not provided
+    initial_message: str = None,
+    # Scenario builder parameters
+    role: str = None,
+    objective: str = None,
+    scenario_context: str = None,
+    key_info: list = None,
+    tone: str = None,
+    additional_instructions: str = None
 ):
     """
     Create a phone agent with specified configuration
 
     Args:
         name: Name of the agent
-        prompt_text: The system prompt for the agent's behavior
+        prompt_text: The system prompt (if not using scenario builder)
         language: Language code (en, es, de, hi, pt, fr, nl, id, it, ja, ko)
         voice_provider: Voice provider (elevenlabs, openai, etc.)
         voice_id: Specific voice ID to use
-        initial_message: Greeting message
+        initial_message: Greeting message (required for outbound calls)
+
+        # Scenario builder parameters (alternative to prompt_text):
+        role: Who the agent is (e.g., "restaurant reservation assistant")
+        objective: What the agent needs to accomplish (e.g., "confirm dinner reservation")
+        scenario_context: Optional scenario context (e.g., "calling existing customers")
+        key_info: List of key information to collect
+        tone: Communication style (e.g., "friendly and professional")
+        additional_instructions: Extra instructions to add to the prompt
 
     Returns:
         dict: Agent creation response with agent id
     """
+
+    # If using scenario builder, generate prompt
+    if role and objective:
+        generated_prompt = build_scenario_prompt(
+            role=role,
+            objective=objective,
+            scenario_context=scenario_context,
+            key_info=key_info,
+            tone=tone,
+            additional_instructions=additional_instructions
+        )
+        # Use generated prompt unless custom prompt is provided
+        if not prompt_text:
+            prompt_text = generated_prompt
+            print(f"📋 Building scenario-based prompt")
+            print(f"   Role: {role}")
+            print(f"   Objective: {objective}")
+            print(f"\n✨ Generated Prompt:")
+            print("─" * 60)
+            print(prompt_text)
+            print("─" * 60)
+
+    # Error if neither scenario builder nor prompt is provided
+    if not prompt_text:
+        raise ValueError("Must provide either --prompt or (--role + --objective) parameters")
 
     if not FLUENTS_API_KEY:
         raise ValueError("FLUENTS_API_KEY not found in environment variables")
@@ -68,13 +185,9 @@ def create_agent(
         print("✗ No voice specified and couldn't fetch default voice", file=sys.stderr)
         sys.exit(1)
 
-    # Set default initial message for OUTBOUND calls
-    # Note: Caller should customize this based on their specific purpose
+    # Validate initial_message is provided
     if not initial_message:
-        initial_message = "Hello, I'm calling regarding an important matter."
-        print(f"⚠ Using default opening: \"{initial_message}\"")
-        print(f"  TIP: Customize with --initial-message for better results")
-        print(f"  Example: \"Hello, I'm calling to make a dinner reservation.\"")
+        raise ValueError("--initial-message is required. Please specify what the agent should say when the call connects.")
 
     # Construct the payload according to fluents.ai API spec
     # IMPORTANT: Based on successful curl tests, the format must be:
@@ -137,22 +250,88 @@ def create_agent(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Create a fluents.ai phone agent (FIXED)")
-    parser.add_argument("--name", required=True, help="Name of the agent")
-    parser.add_argument("--prompt", required=True, help="System prompt for agent behavior")
-    parser.add_argument("--language", default="en", help="Language code (default: en)")
-    parser.add_argument("--voice-id", help="Specific voice ID (will use default if not specified)")
-    parser.add_argument("--initial-message",
-                       help="Initial greeting (auto-generated from prompt if not provided)")
+    parser = argparse.ArgumentParser(
+        description="Create scenario-based fluents.ai phone agents",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Usage Examples:
+
+  # Define agent by role and objective (recommended)
+  python3 scripts/create_agent.py \\
+    --name "Restaurant Reservation Agent" \\
+    --role "restaurant reservation assistant from The Italian Kitchen" \\
+    --objective "confirm the customer's dinner reservation for tonight" \\
+    --initial-message "Hello, I'm calling from The Italian Kitchen to confirm your reservation." \\
+    --tone "friendly and professional" \\
+    --key-info "reservation time,number of guests,any dietary requirements"
+
+  # Delivery notification example
+  python3 scripts/create_agent.py \\
+    --name "Delivery Agent" \\
+    --role "delivery coordinator from Amazon" \\
+    --objective "notify the customer that their package will arrive today" \\
+    --initial-message "Hello, this is Amazon. Your package is out for delivery." \\
+    --key-info "delivery time window,delivery address confirmation"
+
+  # Use fully custom prompt (traditional way)
+  python3 scripts/create_agent.py \\
+    --name "My Agent" \\
+    --prompt "You are a helpful assistant..." \\
+    --initial-message "Hello, how can I help you?"
+        """
+    )
+
+    # Basic parameters
+    parser.add_argument("--name", required=True,
+                       help="Agent name")
+    parser.add_argument("--initial-message", required=True,
+                       help="Opening message when the call connects (what the agent says first)")
+    parser.add_argument("--language", default="en",
+                       help="Language code (default: en)")
+    parser.add_argument("--voice-id",
+                       help="Specific voice ID (uses default if not specified)")
+
+    # Scenario builder parameters (recommended way)
+    parser.add_argument("--role",
+                       help="Who the agent is (e.g., 'restaurant reservation assistant from Joe's Pizza')")
+    parser.add_argument("--objective",
+                       help="What the agent needs to accomplish (e.g., 'confirm dinner reservation')")
+    parser.add_argument("--scenario-context",
+                       help="Optional context (e.g., 'calling existing customers who made reservations online')")
+    parser.add_argument("--key-info",
+                       help="Comma-separated list of info to collect (e.g., 'date,time,number of guests')")
+    parser.add_argument("--tone",
+                       help="Communication style (e.g., 'friendly and professional')")
+    parser.add_argument("--additional-instructions",
+                       help="Any special instructions for the agent")
+
+    # Traditional parameter (backward compatible)
+    parser.add_argument("--prompt",
+                       help="Custom system prompt (alternative to using --role + --objective)")
 
     args = parser.parse_args()
+
+    # Validate parameters
+    if not args.prompt and not (args.role and args.objective):
+        parser.error("Must provide either --prompt OR (--role + --objective)")
+
+    # Parse key_info if provided
+    key_info_list = None
+    if args.key_info:
+        key_info_list = [info.strip() for info in args.key_info.split(',')]
 
     result = create_agent(
         name=args.name,
         prompt_text=args.prompt,
         language=args.language,
         voice_id=args.voice_id,
-        initial_message=args.initial_message
+        initial_message=args.initial_message,
+        role=args.role,
+        objective=args.objective,
+        scenario_context=args.scenario_context,
+        key_info=key_info_list,
+        tone=args.tone,
+        additional_instructions=args.additional_instructions
     )
 
     # Output agent_id for use in subsequent scripts
