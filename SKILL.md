@@ -100,6 +100,13 @@ When the user requests a phone call, extract and confirm:
 
 Create an agent optimized for the specific task with proper safeguards.
 
+**📚 IMPORTANT: Read [BEST_PRACTICES.md](./BEST_PRACTICES.md) for detailed guidance on creating effective agents!**
+
+The most common failure mode is **identity confusion** - especially for outbound calls. The agent must understand:
+- **WHO is calling WHOM** (YOU are calling THEM for outbound calls)
+- **What NOT to say** (e.g., NEVER say "How can I help you?" on outbound calls)
+- **Specific conversation flow** (not vague objectives)
+
 **Agent Configuration Requirements:**
 - **Clear objective**: Explicit instructions on what to accomplish
 - **Task completion criteria**: Agent must know when the task is done

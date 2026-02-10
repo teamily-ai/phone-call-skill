@@ -65,8 +65,10 @@ See `.env.example` for a template.
 ## Documentation
 
 - [SKILL.md](./SKILL.md) - Complete skill documentation
+- **[BEST_PRACTICES.md](./BEST_PRACTICES.md)** - ⭐ Essential guide for creating effective phone agents
 - [API Reference](./references/fluents_api.md) - fluents.ai API details
 - [Examples](./references/examples.md) - Usage examples
+- [Bad vs Good Comparison](./examples/comparison_bad_vs_good.md) - Learn from common mistakes
 
 ## Security & Privacy
 

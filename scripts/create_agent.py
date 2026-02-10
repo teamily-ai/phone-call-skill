@@ -15,6 +15,93 @@ FLUENTS_API_KEY = os.getenv("FLUENTS_API_KEY")
 FLUENTS_API_URL = os.getenv("FLUENTS_API_URL", "https://api.fluents.ai")
 
 
+def build_outbound_prompt(
+    objective: str,
+    key_info: dict = None,
+    conversation_flow: str = None,
+    tone: str = "friendly and professional",
+    additional_instructions: str = None
+) -> str:
+    """
+    Build an outbound call prompt following best practices
+
+    This generates prompts optimized for OUTBOUND calls where the AI is the CALLER.
+
+    Args:
+        objective: What you need to accomplish (e.g., "make a dinner reservation")
+        key_info: Dict of known information (e.g., {"name": "Lee", "party_size": 2})
+        conversation_flow: Optional detailed conversation flow steps
+        tone: Communication style (default: "friendly and professional")
+        additional_instructions: Any special instructions
+
+    Returns:
+        str: Complete structured prompt for outbound calls
+    """
+    prompt_parts = [
+        "# IDENTITY - WHO YOU ARE",
+        "You are making an OUTBOUND phone call.",
+        "You are the CALLER, not someone answering the phone.",
+        "YOU initiated this call. THEY answered YOUR call.",
+        "",
+        "CRITICAL: You are NOT a receptionist or assistant answering calls.",
+        "CRITICAL: You are NOT waiting for the other person to state their business.",
+        "CRITICAL: You need to clearly state YOUR purpose for calling.",
+        "",
+        "# ROLE PROHIBITIONS - NEVER DO THESE",
+        'NEVER say "How can I help you?" - YOU are the one who needs help',
+        'NEVER say "Thank you for calling" - YOU are calling them',
+        "NEVER wait for them to explain what they want - YOU explain what you want",
+        "NEVER act like you are receiving this call - YOU are making this call",
+        "",
+        f"# YOUR TASK",
+        f"Your goal is to {objective}.",
+        "",
+    ]
+
+    # Add key information if provided
+    if key_info and len(key_info) > 0:
+        prompt_parts.extend([
+            "# KEY INFORMATION (You already know this - don't ask for it!)",
+        ])
+        for key, value in key_info.items():
+            prompt_parts.append(f"- {key}: {value}")
+        prompt_parts.extend([
+            "",
+            "When they ask for this information, provide it directly.",
+            'Do NOT say "let me check" - you already know this information.',
+            "",
+        ])
+
+    # Add conversation flow if provided
+    if conversation_flow:
+        prompt_parts.extend([
+            "# CONVERSATION FLOW",
+            conversation_flow,
+            "",
+        ])
+
+    # Add speaking style guidelines
+    prompt_parts.extend([
+        "# SPEAKING STYLE",
+        "- Speak one short sentence at a time",
+        "- Sound natural like a real person on the phone",
+        "- Do NOT give long explanations or speeches",
+        f"- Maintain a {tone} tone",
+        "- Wait for their response after each sentence",
+        "- Keep it conversational, not robotic",
+        "",
+    ])
+
+    if additional_instructions:
+        prompt_parts.extend([
+            "# SPECIAL INSTRUCTIONS",
+            additional_instructions,
+            "",
+        ])
+
+    return "\n".join(prompt_parts)
+
+
 def build_scenario_prompt(
     role: str,
     objective: str,
@@ -25,6 +112,9 @@ def build_scenario_prompt(
 ) -> str:
     """
     Build a structured prompt based on caller-defined parameters
+
+    NOTE: For outbound calls, consider using build_outbound_prompt() instead,
+    as it follows best practices to avoid identity confusion.
 
     Args:
         role: Who you are (e.g., "restaurant reservation assistant")
@@ -100,10 +190,13 @@ def create_agent(
     voice_id: str = None,
     initial_message: str = None,
     # Scenario builder parameters
+    call_type: str = "outbound",  # "outbound" or "inbound"
     role: str = None,
     objective: str = None,
     scenario_context: str = None,
     key_info: list = None,
+    key_info_dict: dict = None,
+    conversation_flow: str = None,
     tone: str = None,
     additional_instructions: str = None
 ):
@@ -119,10 +212,13 @@ def create_agent(
         initial_message: Greeting message (required for outbound calls)
 
         # Scenario builder parameters (alternative to prompt_text):
-        role: Who the agent is (e.g., "restaurant reservation assistant")
-        objective: What the agent needs to accomplish (e.g., "confirm dinner reservation")
+        call_type: "outbound" (default) or "inbound" - affects prompt generation
+        role: Who the agent is (for inbound calls, e.g., "customer service representative")
+        objective: What the agent needs to accomplish (e.g., "make a dinner reservation")
         scenario_context: Optional scenario context (e.g., "calling existing customers")
-        key_info: List of key information to collect
+        key_info: List of key information to collect (for inbound)
+        key_info_dict: Dict of known information (for outbound, e.g., {"name": "Lee", "party_size": 2})
+        conversation_flow: Detailed conversation flow steps (for outbound)
         tone: Communication style (e.g., "friendly and professional")
         additional_instructions: Extra instructions to add to the prompt
 
@@ -130,21 +226,34 @@ def create_agent(
         dict: Agent creation response with agent id
     """
 
-    # If using scenario builder, generate prompt
-    if role and objective:
-        generated_prompt = build_scenario_prompt(
-            role=role,
-            objective=objective,
-            scenario_context=scenario_context,
-            key_info=key_info,
-            tone=tone,
-            additional_instructions=additional_instructions
-        )
+    # If using scenario builder, generate prompt based on call type
+    if objective:
+        if call_type == "outbound":
+            # Use outbound-optimized prompt builder (best practices)
+            generated_prompt = build_outbound_prompt(
+                objective=objective,
+                key_info=key_info_dict,
+                conversation_flow=conversation_flow,
+                tone=tone or "friendly and professional",
+                additional_instructions=additional_instructions
+            )
+            builder_type = "outbound call (best practices)"
+        else:
+            # Use traditional scenario builder for inbound calls
+            generated_prompt = build_scenario_prompt(
+                role=role or "assistant",
+                objective=objective,
+                scenario_context=scenario_context,
+                key_info=key_info,
+                tone=tone,
+                additional_instructions=additional_instructions
+            )
+            builder_type = "inbound call (traditional)"
+
         # Use generated prompt unless custom prompt is provided
         if not prompt_text:
             prompt_text = generated_prompt
-            print(f"📋 Building scenario-based prompt")
-            print(f"   Role: {role}")
+            print(f"📋 Building {builder_type} prompt")
             print(f"   Objective: {objective}")
             print(f"\n✨ Generated Prompt:")
             print("─" * 60)
@@ -256,28 +365,40 @@ def main():
         epilog="""
 Usage Examples:
 
-  # Define agent by role and objective (recommended)
+  # OUTBOUND call - Make a restaurant reservation (RECOMMENDED - uses best practices)
   python3 scripts/create_agent.py \\
     --name "Restaurant Reservation Agent" \\
-    --role "restaurant reservation assistant from The Italian Kitchen" \\
-    --objective "confirm the customer's dinner reservation for tonight" \\
-    --initial-message "Hello, I'm calling from The Italian Kitchen to confirm your reservation." \\
-    --tone "friendly and professional" \\
-    --key-info "reservation time,number of guests,any dietary requirements"
+    --call-type outbound \\
+    --objective "make a dinner reservation at the restaurant" \\
+    --initial-message "Hi, I'd like to make a reservation for dinner tonight." \\
+    --key-info-dict '{"name": "Lee (L-E-E)", "party_size": "2 people", "preferred_time": "7 PM", "phone": "310-555-1234"}' \\
+    --tone "friendly and casual"
 
-  # Delivery notification example
+  # OUTBOUND call - Appointment confirmation with conversation flow
   python3 scripts/create_agent.py \\
-    --name "Delivery Agent" \\
-    --role "delivery coordinator from Amazon" \\
-    --objective "notify the customer that their package will arrive today" \\
-    --initial-message "Hello, this is Amazon. Your package is out for delivery." \\
-    --key-info "delivery time window,delivery address confirmation"
+    --name "Appointment Reminder" \\
+    --call-type outbound \\
+    --objective "confirm the customer's appointment tomorrow at 3 PM" \\
+    --initial-message "Hi, this is a reminder about your appointment tomorrow." \\
+    --key-info-dict '{"appointment_time": "3 PM tomorrow", "customer_name": "John"}' \\
+    --conversation-flow "1. Confirm they can still make it\\n2. If yes, thank them\\n3. If no, ask for alternative time"
 
-  # Use fully custom prompt (traditional way)
+  # INBOUND call - Customer service (traditional scenario builder)
   python3 scripts/create_agent.py \\
-    --name "My Agent" \\
-    --prompt "You are a helpful assistant..." \\
-    --initial-message "Hello, how can I help you?"
+    --name "Support Agent" \\
+    --call-type inbound \\
+    --role "customer service representative" \\
+    --objective "help customers with their questions" \\
+    --initial-message "Hello, how can I help you today?" \\
+    --key-info "customer name,order number,issue description"
+
+  # Use fully custom prompt (maximum control)
+  python3 scripts/create_agent.py \\
+    --name "Custom Agent" \\
+    --prompt "You are making an OUTBOUND call TO a restaurant..." \\
+    --initial-message "Hi, I'd like to make a reservation."
+
+  # See BEST_PRACTICES.md for detailed guidance on creating effective agents
         """
     )
 
@@ -292,14 +413,20 @@ Usage Examples:
                        help="Specific voice ID (uses default if not specified)")
 
     # Scenario builder parameters (recommended way)
+    parser.add_argument("--call-type", default="outbound", choices=["outbound", "inbound"],
+                       help="Type of call: 'outbound' (you call them) or 'inbound' (they call you). Default: outbound")
     parser.add_argument("--role",
-                       help="Who the agent is (e.g., 'restaurant reservation assistant from Joe's Pizza')")
-    parser.add_argument("--objective",
-                       help="What the agent needs to accomplish (e.g., 'confirm dinner reservation')")
+                       help="Who the agent is (for inbound calls, e.g., 'customer service representative')")
+    parser.add_argument("--objective", required=False,
+                       help="What the agent needs to accomplish (e.g., 'make a dinner reservation')")
     parser.add_argument("--scenario-context",
                        help="Optional context (e.g., 'calling existing customers who made reservations online')")
     parser.add_argument("--key-info",
-                       help="Comma-separated list of info to collect (e.g., 'date,time,number of guests')")
+                       help="[Inbound] Comma-separated list of info to collect (e.g., 'date,time,number of guests')")
+    parser.add_argument("--key-info-dict",
+                       help="[Outbound] JSON dict of known info (e.g., '{\"name\": \"Lee\", \"party_size\": 2}')")
+    parser.add_argument("--conversation-flow",
+                       help="[Outbound] Detailed conversation flow steps")
     parser.add_argument("--tone",
                        help="Communication style (e.g., 'friendly and professional')")
     parser.add_argument("--additional-instructions",
@@ -312,13 +439,22 @@ Usage Examples:
     args = parser.parse_args()
 
     # Validate parameters
-    if not args.prompt and not (args.role and args.objective):
-        parser.error("Must provide either --prompt OR (--role + --objective)")
+    if not args.prompt and not args.objective:
+        parser.error("Must provide either --prompt OR --objective")
 
-    # Parse key_info if provided
+    # Parse key_info if provided (for inbound calls)
     key_info_list = None
     if args.key_info:
         key_info_list = [info.strip() for info in args.key_info.split(',')]
+
+    # Parse key_info_dict if provided (for outbound calls)
+    import json
+    key_info_dict = None
+    if args.key_info_dict:
+        try:
+            key_info_dict = json.loads(args.key_info_dict)
+        except json.JSONDecodeError as e:
+            parser.error(f"Invalid JSON in --key-info-dict: {e}")
 
     result = create_agent(
         name=args.name,
@@ -326,10 +462,13 @@ Usage Examples:
         language=args.language,
         voice_id=args.voice_id,
         initial_message=args.initial_message,
+        call_type=args.call_type,
         role=args.role,
         objective=args.objective,
         scenario_context=args.scenario_context,
         key_info=key_info_list,
+        key_info_dict=key_info_dict,
+        conversation_flow=args.conversation_flow,
         tone=args.tone,
         additional_instructions=args.additional_instructions
     )
